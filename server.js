@@ -1,313 +1,355 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const multer = require('multer');
+const jwt = require('jsonwebtoken');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
-const { google } = require('googleapis');
+const multer = require('multer');
+const fs = require('fs');
+require('dotenv').config();
+
+const admin = require('firebase-admin');
+const serviceAccount = require('./serviceAccountKey.json');
+
+// Inisialisasi Firebase Admin SDK (Pastikan URL menunjuk ke root, tanpa path di belakangnya)
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://himpunanteknikelektro-b3188-default-rtdb.asia-southeast1.firebasedatabase.app"
+});
+
+const db = admin.database();
+console.log('Database Firebase Realtime Database connected.');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
+// Konfigurasi Multer untuk Upload File (Produk & Nota Kas)
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, 'uploads/'),
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
-});
-const upload = multer({ storage });
-
-const db = new sqlite3.Database('./database.db', (err) => {
-    if (!err) console.log('Database SQLite connected.');
-});
-
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nim TEXT UNIQUE,
-        nama TEXT,
-        email TEXT UNIQUE,
-        password TEXT,
-        role TEXT DEFAULT 'anggota',
-        jabatan TEXT DEFAULT 'Anggota',
-        status TEXT DEFAULT 'aktif'
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS kegiatan (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        judul TEXT,
-        deskripsi TEXT,
-        tanggal TEXT,
-        poin_informasi TEXT
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS uang_kas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tanggal TEXT,
-        jenis TEXT,
-        jumlah REAL,
-        keterangan TEXT,
-        bukti_nota TEXT
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS products (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nama_produk TEXT,
-        deskripsi TEXT,
-        harga REAL,
-        stok INTEGER,
-        gambar TEXT
-    )`);
-
-    // Default Akun Ketua Himpunan
-    db.get(`SELECT * FROM users WHERE email = 'ketua@hmte.or.id'`, async (err, row) => {
-        if (!row) {
-            const hash = await bcrypt.hash('ketua123', 10);
-            db.run(`INSERT INTO users (nim, nama, email, password, role, jabatan, status) VALUES ('KHD01', 'Ketua Himpunan Elektro', 'ketua@hmte.or.id', ?, 'admin', 'Ketua Himpunan', 'aktif')`, [hash]);
-        }
-    });
-
-    // Default Akun Sekretaris Himpunan
-    db.get(`SELECT * FROM users WHERE email = 'sekretaris@hmte.or.id'`, async (err, row) => {
-        if (!row) {
-            const hash = await bcrypt.hash('sekretaris123', 10);
-            db.run(`INSERT INTO users (nim, nama, email, password, role, jabatan, status) VALUES ('SKR01', 'Sekretaris Himpunan Elektro', 'sekretaris@hmte.or.id', ?, 'admin', 'Sekretaris Himpunan', 'aktif')`, [hash]);
-        }
-    });
-
-    // Default Akun Bendahara Himpunan
-    db.get(`SELECT * FROM users WHERE email = 'Bendahara@hmte.or.id'`, async (err, row) => {
-        if (!row) {
-            const hash = await bcrypt.hash('bendahara123', 10);
-            db.run(`INSERT INTO users (nim, nama, email, password, role, jabatan, status) VALUES ('BDHR01', 'Bendahara Himpunan Elektro', 'bendahara@hmte.or.id', ?, 'admin', 'Sekretaris Himpunan', 'aktif')`, [hash]);
-        }
-    });
-});
-
-async function syncToGoogleSheet(dataKas) {
-    try {
-        const auth = new google.auth.GoogleAuth({
-            keyFile: 'credentials.json',
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
-        const sheets = google.sheets({ version: 'v4', auth });
-        await sheets.spreadsheets.values.append({
-            spreadsheetId: process.env.GOOGLE_SPREADSHEET_ID,
-            range: 'Laporan Kas!A:E',
-            valueInputOption: 'USER_ENTERED',
-            resource: {
-                values: [[dataKas.tanggal, dataKas.jenis, dataKas.jumlah, dataKas.keterangan, dataKas.bukti_nota || '-']]
-            }
-        });
-    } catch (err) {
-        console.log('Google Sheets Sync skipped:', err.message);
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, 'public/uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const upload = multer({ storage: storage });
+
+const JWT_SECRET = process.env.JWT_SECRET || 'hmte-secret-key-2026';
+
+// Middleware Autentikasi JWT
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ success: false, message: 'Token tidak ditemukan' });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ success: false, message: 'Token tidak valid' });
+    req.user = user;
+    next();
+  });
+};
+
+// Inisialisasi Akun Admin Default
+async function initDefaultAdmins() {
+  try {
+    const usersRef = db.ref('users');
+    const snapshot = await usersRef.once('value');
+    if (!snapshot.exists()) {
+      const defaultAdmins = [
+        { nim: '001', nama: 'Ketua Himpunan', email: 'ketua@hmte.or.id', pass: 'ketua123', jabatan: 'Ketua Himpunan', status: 'aktif' },
+        { nim: '002', nama: 'Sekretaris Himpunan', email: 'sekretaris@hmte.or.id', pass: 'sekretaris123', jabatan: 'Sekretaris Himpunan', status: 'aktif' },
+        { nim: '003', nama: 'Bendahara Himpunan', email: 'bendahara@hmte.or.id', pass: 'bendahara123', jabatan: 'Bendahara Himpunan', status: 'aktif' }
+      ];
+
+      const updates = {};
+      for (let adminData of defaultAdmins) {
+        const hashedPassword = await bcrypt.hash(adminData.pass, 10);
+        const newUserRef = usersRef.push();
+        updates[newUserRef.key] = {
+          nim: adminData.nim,
+          nama: adminData.nama,
+          email: adminData.email,
+          password: hashedPassword,
+          jabatan: adminData.jabatan,
+          status: adminData.status,
+          createdAt: Date.now()
+        };
+      }
+      await usersRef.update(updates);
+      console.log('Akun admin default berhasil diinisialisasi ke Firebase.');
+    }
+  } catch (error) {
+    console.error('Gagal menginisialisasi admin default:', error.message);
+  }
 }
+initDefaultAdmins();
 
-function verifyAdmin(req, res, next) {
-    const token = req.headers['authorization']?.split(' ')[1];
-    if (!token) return res.status(401).json({ message: "Akses ditolak. Token tidak ditemukan." });
-
-    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-        if (err || decoded.role !== 'admin') {
-            return res.status(403).json({ message: "Akses ditolak! Khusus Admin." });
-        }
-        
-        db.get(`SELECT status, jabatan FROM users WHERE id = ?`, [decoded.id], (dbErr, user) => {
-            if (dbErr || !user || user.status !== 'aktif' || !['Ketua Himpunan', 'Sekretaris Himpunan', 'Bendahara Himpunan'].includes(user.jabatan)) {
-                return res.status(403).json({ message: "Akses ditolak! Masa jabatan Anda telah berakhir atau akun dinonaktifkan." });
-            }
-            req.user = decoded;
-            next();
-        });
-    });
-}
-
-// ENDPOINTS PUBLIK
-app.post('/api/login', (req, res) => {
+// ================= LOGIN ROUTE =================
+app.post('/api/login', async (req, res) => {
+  try {
     const { email, password } = req.body;
-    db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(400).json({ message: "Email atau password salah." });
-        }
-        if (user.status !== 'aktif') {
-            return res.status(403).json({ message: "Akses ditolak. Masa jabatan Anda telah berakhir." });
-        }
-        const token = jwt.sign({ id: user.id, role: user.role, nama: user.nama }, process.env.JWT_SECRET, { expiresIn: '1d' });
-        res.json({ token, role: user.role, nama: user.nama });
-    });
-});
-
-app.get('/api/anggota/search', (req, res) => {
-    const keyword = req.query.q || '';
-    const query = `%${keyword}%`;
-    db.all(`SELECT nim, nama, status FROM users WHERE role = 'anggota' AND (nim LIKE ? OR nama LIKE ?)`, [query, query], (err, rows) => {
-        if (err) return res.status(500).json({ message: "Gagal melakukan pencarian." });
-        res.json(rows || []);
-    });
-});
-
-app.get('/api/kegiatan', (req, res) => {
-    db.all(`SELECT * FROM kegiatan ORDER BY id DESC`, [], (err, rows) => {
-        res.json(rows || []);
-    });
-});
-
-app.get('/api/uang-kas', (req, res) => {
-    const bulan = req.query.month;
-    let query = `SELECT * FROM uang_kas`;
-    let params = [];
-    if (bulan) {
-        query += ` WHERE tanggal LIKE ?`;
-        params.push(`${bulan}%`);
+    const usersRef = db.ref('users');
+    const snapshot = await usersRef.orderByChild('email').equalTo(email).once('value');
+    
+    if (!snapshot.exists()) {
+      return res.status(401).json({ success: false, message: 'Email atau password salah' });
     }
-    query += ` ORDER BY id DESC`;
-    db.all(query, params, (err, rows) => {
-        res.json(rows || []);
-    });
+
+    const usersData = snapshot.val();
+    const userId = Object.keys(usersData)[0];
+    const user = usersData[userId];
+
+    if (user.status && user.status !== 'aktif') {
+      return res.status(403).json({ success: false, message: 'Akun pengurus ini dinonaktifkan' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Email atau password salah' });
+    }
+
+    const token = jwt.sign({ id: userId, email: user.email, jabatan: user.jabatan }, JWT_SECRET, { expiresIn: '1d' });
+    res.json({ success: true, message: 'Login berhasil', token, user: { nama: user.nama, email: user.email, jabatan: user.jabatan } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-app.get('/api/products', (req, res) => {
-    db.all(`SELECT * FROM products ORDER BY id DESC`, [], (err, rows) => {
-        res.json(rows || []);
-    });
+// ================= ENDPOINT PUBLIK (UNTUK INDEX.HTML) =================
+app.get('/api/anggota', async (req, res) => {
+  try {
+    const snapshot = await db.ref('anggota').once('value');
+    const data = snapshot.val() ? Object.keys(snapshot.val()).map(key => ({ id: key, ...snapshot.val()[key] })) : [];
+    res.json({ success: true, data });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-// ENDPOINTS ADMIN
-app.get('/api/admin/daftar-pengurus', verifyAdmin, (req, res) => {
-    db.all(`SELECT id, nim, nama, email, jabatan, status FROM users WHERE role = 'admin'`, [], (err, rows) => {
-        res.json(rows || []);
-    });
+app.get('/api/kegiatan', async (req, res) => {
+  try {
+    const snapshot = await db.ref('kegiatan').once('value');
+    const data = snapshot.val() ? Object.keys(snapshot.val()).map(key => ({ id: key, ...snapshot.val()[key] })) : [];
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-app.post('/api/admin/tambah-pengurus', verifyAdmin, async (req, res) => {
+app.get('/api/products', async (req, res) => {
+  try {
+    const snapshot = await db.ref('products').once('value');
+    const data = snapshot.val() ? Object.keys(snapshot.val()).map(key => ({ id: key, ...snapshot.val()[key] })) : [];
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/uang-kas', async (req, res) => {
+  try {
+    const snapshot = await db.ref('uang-kas').once('value');
+    const data = snapshot.val() ? Object.keys(snapshot.val()).map(key => ({ id: key, ...snapshot.val()[key] })) : [];
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ================= MANAJEMEN PENGURUS (ADMIN) =================
+app.get('/api/admin/daftar-pengurus', verifyToken, async (req, res) => {
+  try {
+    const snapshot = await db.ref('users').once('value');
+    const data = snapshot.val() ? Object.keys(snapshot.val()).map(key => ({ id: key, ...snapshot.val()[key] })) : [];
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/admin/tambah-pengurus', verifyToken, async (req, res) => {
+  try {
     const { nim, nama, jabatan, email, password } = req.body;
-    try {
-        const hash = await bcrypt.hash(password, 10);
-        db.run(`INSERT INTO users (nim, nama, email, password, role, jabatan, status) VALUES (?, ?, ?, ?, 'admin', ?, 'aktif')`,
-            [nim, nama, email, hash, jabatan],
-            (err) => {
-                if (err) return res.status(400).json({ message: "NIM atau Email pengurus sudah terdaftar." });
-                res.json({ message: "Akun pengurus baru berhasil ditambahkan!" });
-            }
-        );
-    } catch (err) {
-        res.status(500).json({ message: "Terjadi kesalahan pada server." });
-    }
+    const hashedPassword = await bcrypt.hash(password || '123456', 10);
+    await db.ref('users').push({
+      nim, nama, jabatan, email,
+      password: hashedPassword,
+      status: 'aktif',
+      createdAt: Date.now()
+    });
+    res.json({ success: true, message: 'Pengurus baru berhasil ditambahkan' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-app.patch('/api/admin/pengurus/:id/status', verifyAdmin, (req, res) => {
+app.patch('/api/admin/pengurus/:id/status', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
     const { status } = req.body;
-    db.run(`UPDATE users SET status = ? WHERE id = ? AND role = 'admin'`, [status, req.params.id], () => {
-        res.json({ message: `Status kepengurusan berhasil diubah menjadi ${status}` });
-    });
+    await db.ref('users/' + id).update({ status });
+    res.json({ success: true, message: `Status pengurus diubah menjadi ${status}` });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-app.get('/api/admin/anggota', verifyAdmin, (req, res) => {
-    db.all(`SELECT id, nim, nama, email, status FROM users WHERE role = 'anggota'`, [], (err, rows) => {
-        res.json(rows || []);
-    });
-});
-
-app.post('/api/admin/anggota', verifyAdmin, async (req, res) => {
-    const { nim, nama, email } = req.body;
-    const defaultPassword = await bcrypt.hash('123456', 10);
-    db.run(`INSERT INTO users (nim, nama, email, password, role, status) VALUES (?, ?, ?, ?, 'anggota', 'aktif')`,
-        [nim, nama, email, defaultPassword],
-        (err) => {
-            if (err) return res.status(400).json({ message: "NIM atau Email sudah terdaftar." });
-            res.json({ message: "Anggota HMTE baru berhasil ditambahkan!" });
-        }
-    );
-});
-
-app.patch('/api/admin/anggota/:id/status', verifyAdmin, (req, res) => {
-    const { status } = req.body;
-    db.run(`UPDATE users SET status = ? WHERE id = ?`, [status, req.params.id], () => {
-        res.json({ message: `Status keanggotaan berhasil diubah menjadi ${status}` });
-    });
-});
-
-app.delete('/api/admin/anggota/:id', verifyAdmin, (req, res) => {
-    db.run(`DELETE FROM users WHERE id = ? AND role = 'anggota'`, [req.params.id], () => {
-        res.json({ message: "Anggota berhasil dihapus dari database." });
-    });
-});
-
-app.post('/api/admin/kegiatan', verifyAdmin, (req, res) => {
-    const { judul, deskripsi, tanggal, poin_informasi } = req.body;
-    db.run(`INSERT INTO kegiatan (judul, deskripsi, tanggal, poin_informasi) VALUES (?, ?, ?, ?)`,
-        [judul, deskripsi, tanggal, JSON.stringify(poin_informasi)],
-        function () {
-            res.json({ message: "Kegiatan berhasil ditambahkan", id: this.lastID });
-        }
-    );
-});
-
-app.delete('/api/admin/kegiatan/:id', verifyAdmin, (req, res) => {
-    db.run(`DELETE FROM kegiatan WHERE id = ?`, [req.params.id], () => {
-        res.json({ message: "Informasi kegiatan berhasil dihapus." });
-    });
-});
-
-app.post('/api/admin/uang-kas', verifyAdmin, upload.single('nota'), async (req, res) => {
-    const { tanggal, jenis, jumlah, keterangan } = req.body;
-    const bukti_nota = req.file ? `/uploads/${req.file.filename}` : '';
-    db.run(`INSERT INTO uang_kas (tanggal, jenis, jumlah, keterangan, bukti_nota) VALUES (?, ?, ?, ?, ?)`,
-        [tanggal, jenis, parseFloat(jumlah), keterangan, bukti_nota],
-        async function () {
-            await syncToGoogleSheet({ tanggal, jenis, jumlah, keterangan, bukti_nota });
-            res.json({ message: "Transaksi Kas berhasil disimpan & disinkronkan!", id: this.lastID });
-        }
-    );
-});
-
-app.delete('/api/admin/uang-kas/:id', verifyAdmin, (req, res) => {
-    db.run(`DELETE FROM uang_kas WHERE id = ?`, [req.params.id], () => {
-        res.json({ message: "Informasi uang kas berhasil dihapus." });
-    });
-});
-
-// Endpoint Manajemen Produk & Stok
-app.post('/api/admin/products', verifyAdmin, upload.single('gambar'), (req, res) => {
-    const { nama_produk, deskripsi, harga, stok } = req.body;
+// ================= MANAJEMEN PRODUK (ADMIN) =================
+app.post('/api/admin/products', verifyToken, upload.single('gambar'), async (req, res) => {
+  try {
+    const { nama_produk, harga, stok, deskripsi } = req.body;
     const gambar = req.file ? `/uploads/${req.file.filename}` : '';
-    db.run(`INSERT INTO products (nama_produk, deskripsi, harga, stok, gambar) VALUES (?, ?, ?, ?, ?)`,
-        [nama_produk, deskripsi, parseFloat(harga), parseInt(stok), gambar],
-        function () {
-            res.json({ message: "Produk berhasil ditambahkan!", id: this.lastID });
-        }
-    );
+    await db.ref('products').push({
+      nama_produk, harga: Number(harga), stok: Number(stok), deskripsi, gambar,
+      createdAt: Date.now()
+    });
+    res.json({ success: true, message: 'Produk berhasil ditambahkan' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-app.patch('/api/admin/products/:id/stok', verifyAdmin, (req, res) => {
+app.patch('/api/admin/products/:id/stok', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
     const { stok } = req.body;
-    db.run(`UPDATE products SET stok = ? WHERE id = ?`, [parseInt(stok), req.params.id], () => {
-        res.json({ message: "Jumlah stok produk berhasil diperbarui!" });
-    });
+    await db.ref('products/' + id).update({ stok: Number(stok) });
+    res.json({ success: true, message: 'Stok berhasil diperbarui' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-app.delete('/api/admin/products/:id', verifyAdmin, (req, res) => {
-    db.run(`DELETE FROM products WHERE id = ?`, [req.params.id], () => {
-        res.json({ message: "Produk berhasil dihapus." });
-    });
+app.delete('/api/admin/products/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.ref('products/' + id).remove();
+    res.json({ success: true, message: 'Produk berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
-app.post('/api/admin/change-password', verifyAdmin, async (req, res) => {
+// ================= MANAJEMEN ANGGOTA HMTE (ADMIN) =================
+app.post('/api/admin/anggota', verifyToken, async (req, res) => {
+  try {
+    const { nim, nama, email } = req.body;
+    await db.ref('anggota').push({
+      nim, nama, email,
+      status: 'aktif',
+      createdAt: Date.now()
+    });
+    res.json({ success: true, message: 'Anggota berhasil ditambahkan' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.patch('/api/admin/anggota/:id/status', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    await db.ref('anggota/' + id).update({ status });
+    res.json({ success: true, message: `Status anggota diubah menjadi ${status}` });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/admin/anggota/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.ref('anggota/' + id).remove();
+    res.json({ success: true, message: 'Anggota berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ================= MANAJEMEN KEGIATAN (ADMIN) =================
+app.post('/api/admin/kegiatan', verifyToken, async (req, res) => {
+  try {
+    const { judul, tanggal, deskripsi, poin_informasi } = req.body;
+    await db.ref('kegiatan').push({
+      judul, tanggal, deskripsi,
+      poin_informasi: poin_informasi || [],
+      createdAt: Date.now()
+    });
+    res.json({ success: true, message: 'Kegiatan berhasil ditambahkan' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/admin/kegiatan/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.ref('kegiatan/' + id).remove();
+    res.json({ success: true, message: 'Kegiatan berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ================= MANAJEMEN UANG KAS (ADMIN) =================
+app.post('/api/admin/uang-kas', verifyToken, upload.single('nota'), async (req, res) => {
+  try {
+    const { tanggal, jenis, jumlah, keterangan } = req.body;
+    const nota = req.file ? `/uploads/${req.file.filename}` : '';
+    await db.ref('uang-kas').push({
+      tanggal, jenis, jumlah: Number(jumlah), keterangan, nota,
+      createdAt: Date.now()
+    });
+    res.json({ success: true, message: 'Data kas berhasil ditambahkan' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/admin/uang-kas/:id', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.ref('uang-kas/' + id).remove();
+    res.json({ success: true, message: 'Data kas berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ================= UBAH PASSWORD =================
+app.post('/api/admin/change-password', verifyToken, async (req, res) => {
+  try {
     const { password_lama, password_baru } = req.body;
-    db.get(`SELECT password FROM users WHERE id = ?`, [req.user.id], async (err, user) => {
-        if (!(await bcrypt.compare(password_lama, user.password))) {
-            return res.status(400).json({ message: "Password lama tidak sesuai." });
-        }
-        const newHash = await bcrypt.hash(password_baru, 10);
-        db.run(`UPDATE users SET password = ? WHERE id = ?`, [newHash, req.user.id], () => {
-            res.json({ message: "Password admin berhasil diubah secara mandiri!" });
-        });
-    });
+    const userId = req.user.id;
+
+    const userRef = db.ref('users/' + userId);
+    const snapshot = await userRef.once('value');
+    if (!snapshot.exists()) {
+      return res.status(404).json({ success: false, message: 'User tidak ditemukan' });
+    }
+
+    const user = snapshot.val();
+    const isMatch = await bcrypt.compare(password_lama, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Password lama salah' });
+    }
+
+    const hashedNewPassword = await bcrypt.hash(password_baru, 10);
+    await userRef.update({ password: hashedNewPassword });
+    res.json({ success: true, message: 'Password berhasil diubah' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`Server HMTE running on http://localhost:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server HMTE running on http://localhost:${PORT}`);
+});

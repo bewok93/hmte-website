@@ -1,110 +1,205 @@
 const API_URL = '/api';
+let globalDataKas = [];
 
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("DOM siap, memuat data publik...");
+    loadPublicKegiatan();
+    loadPublicProduk();
+    loadPublicKas();
+});
+
+// ================= 1. NAVIGASI & SIDEBAR =================
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
-    sidebar.classList.toggle('-translate-x-full');
-    overlay.classList.toggle('hidden');
+    if (sidebar && overlay) {
+        sidebar.classList.toggle('-translate-x-full');
+        overlay.classList.toggle('hidden');
+    }
 }
 
 function showSection(sectionId) {
-    document.getElementById('section-profil').classList.add('hidden');
-    document.getElementById('section-anggota').classList.add('hidden');
-    document.getElementById('section-kegiatan').classList.add('hidden');
-    document.getElementById('section-produk').classList.add('hidden');
-    document.getElementById('section-keuangan').classList.add('hidden');
-
-    document.getElementById(`section-${sectionId}`).classList.remove('hidden');
+    const sections = ['profil', 'anggota', 'kegiatan', 'produk', 'keuangan'];
+    sections.forEach(s => {
+        const el = document.getElementById(`section-${s}`);
+        if (el) el.classList.add('hidden');
+    });
+    
+    const target = document.getElementById(`section-${sectionId}`);
+    if (target) target.classList.remove('hidden');
     toggleSidebar();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-async function loadKegiatan() {
-    const res = await fetch(`${API_URL}/kegiatan`);
-    const data = await res.json();
-    document.getElementById('listKegiatan').innerHTML = data.length ? data.map(k => `
-        <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200/80 space-y-4 hover:shadow-md transition">
-            <span class="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">${k.tanggal}</span>
-            <h3 class="font-black text-xl text-slate-900">${k.judul}</h3>
-            <p class="text-slate-600 text-sm leading-relaxed">${k.deskripsi}</p>
-            ${k.poin_informasi ? `<div class="text-xs bg-slate-50 text-slate-700 p-3 rounded-2xl font-medium border border-slate-100">Info: ${JSON.parse(k.poin_informasi).join(', ')}</div>` : ''}
-        </div>
-    `).join('') : '<p class="text-slate-500 text-sm col-span-2 text-center py-10">Belum ada informasi kegiatan yang dipublikasikan.</p>';
-}
 
-async function loadProduk() {
-    const res = await fetch(`${API_URL}/products`);
-    const data = await res.json();
-    document.getElementById('listProduk').innerHTML = data.length ? data.map(p => `
-        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80 space-y-4 flex flex-col justify-between">
-            <div>
-                ${p.gambar ? `<img src="${p.gambar}" alt="${p.nama_produk}" class="w-full h-48 object-cover rounded-2xl mb-4 border border-slate-100">` : ''}
-                <h3 class="font-black text-lg text-slate-900">${p.nama_produk}</h3>
-                <p class="text-slate-600 text-xs mt-1 leading-relaxed">${p.deskripsi || '-'}</p>
-            </div>
-            <div class="space-y-3 pt-4 border-t border-slate-100">
-                <div class="flex justify-between items-center">
-                    <span class="font-black text-blue-600 text-base">Rp ${p.harga.toLocaleString()}</span>
-                    <span class="text-xs px-3 py-1 rounded-full font-bold ${p.stok > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}">
-                        Stok: ${p.stok}
-                    </span>
-                </div>
-            </div>
-        </div>
-    `).join('') : '<p class="text-slate-500 text-sm col-span-3 text-center py-10">Belum ada produk merchandise yang tersedia.</p>';
-}
-
-async function loadKas() {
-    const bulan = document.getElementById('filterBulan')?.value || '';
-    const url = bulan ? `${API_URL}/uang-kas?month=${bulan}` : `${API_URL}/uang-kas`;
-    const res = await fetch(url);
-    const data = await res.json();
-    document.getElementById('tabelKas').innerHTML = data.length ? data.map(k => `
-        <tr class="hover:bg-slate-50 transition">
-            <td class="p-4 text-slate-600">${k.tanggal}</td>
-            <td class="p-4 font-extrabold ${k.jenis === 'masuk' ? 'text-emerald-600' : 'text-rose-600'}">${k.jenis.toUpperCase()}</td>
-            <td class="p-4 font-bold text-slate-900">Rp ${k.jumlah.toLocaleString()}</td>
-            <td class="p-4">${k.bukti_nota ? `<a href="${k.bukti_nota}" target="_blank" class="text-blue-600 hover:underline font-bold">Lihat Nota</a>` : '-'}</td>
-        </tr>
-    `).join('') : '<tr><td colspan="4" class="p-4 text-center text-slate-500 text-sm">Tidak ada transaksi pada bulan ini.</td></tr>';
-}
-
-function resetFilterBulan() {
-    const filterInput = document.getElementById('filterBulan');
-    if (filterInput) filterInput.value = '';
-    loadKas();
-}
-
+// ================= 2. PENCARIAN & VERIFIKASI ANGGOTA =================
 async function cariAnggota() {
-    const keyword = document.getElementById('inputCariAnggota').value.trim();
-    const div = document.getElementById('resultAnggota');
-    if (!keyword) {
-        div.innerHTML = '<p class="text-sm text-slate-500 italic">Silakan masukkan NIM atau Nama terlebih dahulu.</p>';
+    const keyword = document.getElementById('inputCariAnggota')?.value.toLowerCase() || '';
+    const container = document.getElementById('hasilCariAnggota');
+    
+    if (!container) {
+        console.error("Elemen ID 'hasilCariAnggota' tidak ditemukan di index.html!");
         return;
     }
-    const res = await fetch(`${API_URL}/anggota/search?q=${encodeURIComponent(keyword)}`);
-    const data = await res.json();
-    if (res.ok && data.length > 0) {
-        div.innerHTML = data.map(a => `
-            <div class="p-6 rounded-2xl border ${a.status === 'aktif' ? 'bg-emerald-50/50 border-emerald-200 text-emerald-950' : 'bg-rose-50/50 border-rose-200 text-rose-950'} flex justify-between items-center shadow-xs">
-                <div class="space-y-1">
-                    <p class="text-xs font-bold uppercase tracking-wider text-slate-400">NIM: ${a.nim}</p>
-                    <h4 class="text-lg font-black">${a.nama}</h4>
-                </div>
-                <div>
-                    <span class="px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${a.status === 'aktif' ? 'bg-emerald-200 text-emerald-900' : 'bg-rose-200 text-rose-900'}">
-                        ${a.status}
-                    </span>
-                </div>
-            </div>
-        `).join('');
-    } else {
-        div.innerHTML = '<div class="p-6 rounded-2xl text-sm bg-slate-100 text-slate-600 border border-slate-200 text-center font-medium">Data anggota tidak ditemukan dalam database organisasi.</div>';
+
+    if (!keyword) {
+        container.innerHTML = `<p class="text-gray-400 text-sm">Masukkan Nama atau NIM untuk mencari anggota.</p>`;
+        return;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/anggota`);
+        const result = await res.json();
+        const data = result.success ? result.data : (Array.isArray(result) ? result : []);
+
+        const filtered = data.filter(a => 
+            (a.nama && a.nama.toLowerCase().includes(keyword)) || 
+            (a.nim && a.nim.toLowerCase().includes(keyword))
+        );
+
+        if (filtered.length > 0) {
+            container.innerHTML = filtered.map(a => {
+                const isAktif = (!a.status || a.status === 'aktif');
+                return `
+                    <div class="bg-[#121826] border border-gray-800 p-4 rounded-xl flex justify-between items-center mb-3">
+                        <div>
+                            <h4 class="font-bold text-white">${a.nama}</h4>
+                            <p class="text-sm text-gray-400">NIM: ${a.nim} | Email: ${a.email || '-'}</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-semibold ${isAktif ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
+                            ${isAktif ? 'AKTIF' : 'NONAKTIF'}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = `<p class="text-gray-400 text-sm">Anggota dengan kata kunci tersebut tidak ditemukan.</p>`;
+        }
+    } catch (error) {
+        console.error('Gagal mencari anggota:', error);
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadKegiatan();
-    loadProduk();
-    loadKas();
-});
+
+// ================= 3. MENAMPILKAN INFORMASI KEGIATAN =================
+async function loadPublicKegiatan() {
+    try {
+        const res = await fetch(`${API_URL}/kegiatan`);
+        const data = await res.json();
+        console.log("Data Kegiatan diterima:", data);
+        
+        const container = document.getElementById('containerKegiatanPublic');
+        if (!container) {
+            console.error("Elemen ID 'containerKegiatanPublic' tidak ditemukan di index.html!");
+            return;
+        }
+
+        if (Array.isArray(data) && data.length > 0) {
+            container.innerHTML = data.map(k => `
+                <div class="bg-[#121826] border border-gray-800 p-6 rounded-2xl space-y-3">
+                    <span class="text-xs text-indigo-400 font-semibold">${k.tanggal || '-'}</span>
+                    <h3 class="text-xl font-bold text-white">${k.judul}</h3>
+                    <p class="text-sm text-gray-300">${k.deskripsi || ''}</p>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = `<p class="text-gray-400 text-sm">Belum ada informasi kegiatan terbaru.</p>`;
+        }
+    } catch (error) {
+        console.error('Gagal memuat kegiatan:', error);
+    }
+}
+
+
+// ================= 4. MENAMPILKAN & MEMESAN MERCHANDISE =================
+async function loadPublicProduk() {
+    try {
+        const res = await fetch(`${API_URL}/products`);
+        const data = await res.json();
+        console.log("Data Produk diterima:", data);
+
+        const container = document.getElementById('containerProdukPublic');
+        if (!container) {
+            console.error("Elemen ID 'containerProdukPublic' tidak ditemukan di index.html!");
+            return;
+        }
+
+        if (Array.isArray(data) && data.length > 0) {
+            container.innerHTML = data.map(p => `
+                <div class="bg-[#121826] border border-gray-800 rounded-2xl p-4 flex flex-col justify-between hover:border-gray-700 transition">
+                    <div>
+                        <div class="w-full h-44 bg-gray-900 rounded-xl mb-3 overflow-hidden flex items-center justify-center border border-gray-800">
+                            ${p.gambar ? `<img src="${p.gambar}" class="w-full h-full object-contain">` : '<span class="text-xs text-gray-500">No Image</span>'}
+                        </div>
+                        <h3 class="font-bold text-white text-base mb-1">${p.nama_produk}</h3>
+                        <p class="text-emerald-400 font-semibold text-sm">Rp ${Number(p.harga || 0).toLocaleString('id-ID')}</p>
+                        <p class="text-xs text-gray-400 mt-1">Stok Tersedia: <span class="font-medium text-white">${p.stok}</span></p>
+                    </div>
+                    <button onclick="beliProduk('${p.nama_produk}', ${p.harga})" class="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-semibold transition shadow-lg shadow-indigo-600/20">
+                        Pesan via WhatsApp
+                    </button>
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = `<p class="text-gray-400 text-sm col-span-full text-center py-6">Belum ada merchandise yang tersedia.</p>`;
+        }
+    } catch (error) {
+        console.error('Gagal memuat produk:', error);
+    }
+}
+
+function beliProduk(namaProduk, harga) {
+    const nomorWhatsAppAdmin = "6289509410912";
+    const pesan = `Halo Kak, saya ingin memesan merchandise HMTE: *${namaProduk}* seharga Rp ${Number(harga).toLocaleString('id-ID')}. Mohon informasi selanjutnya.`;
+    window.open(`https://wa.me/${nomorWhatsAppAdmin}?text=${encodeURIComponent(pesan)}`, '_blank');
+}
+
+
+// ================= 5. LAPORAN UANG KAS & FILTER PERIODE =================
+async function loadPublicKas() {
+    try {
+        const res = await fetch(`${API_URL}/uang-kas`);
+        const data = await res.json();
+        globalDataKas = Array.isArray(data) ? data : [];
+        renderKas(globalDataKas);
+    } catch (error) {
+        console.error('Gagal memuat data kas:', error);
+    }
+}
+
+function renderKas(data) {
+    const container = document.getElementById('containerKasPublic');
+    if (!container) return;
+
+    if (data.length > 0) {
+        container.innerHTML = data.map(k => `
+            <tr class="border-b border-gray-800 hover:bg-gray-800/50 transition">
+                <td class="p-3 text-gray-300 text-sm">${k.tanggal || '-'}</td>
+                <td class="p-3 font-semibold text-sm ${k.jenis === 'masuk' ? 'text-emerald-400' : 'text-rose-400'}">${(k.jenis || 'masuk').toUpperCase()}</td>
+                <td class="p-3 font-bold text-white text-sm">Rp ${Number(k.jumlah || 0).toLocaleString('id-ID')}</td>
+                <td class="p-3 text-gray-300 text-sm">${k.keterangan || '-'}</td>
+            </tr>
+        `).join('');
+    } else {
+        container.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-400 text-sm">Tidak ada transaksi pada periode ini.</td></tr>`;
+    }
+}
+
+function filterKas() {
+    const tipeFilter = document.getElementById('filterPeriode').value;
+    const now = new Date();
+
+    const filtered = globalDataKas.filter(k => {
+        if (!k.tanggal) return false;
+        const tglTransaksi = new Date(k.tanggal);
+
+        if (tipeFilter === 'bulan') {
+            return tglTransaksi.getMonth() === now.getMonth() && tglTransaksi.getFullYear() === now.getFullYear();
+        } else if (tipeFilter === 'minggu') {
+            const selisihHari = (now - tglTransaksi) / (1000 * 60 * 60 * 24);
+            return selisihHari >= 0 && selisihHari <= 7;
+        }
+        return true;
+    });
+
+    renderKas(filtered);
+}
