@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Himpunan Mahasiswa Teknik Elektro (HMTE) - Unpam Kampus Serang</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-blue-600 selection:text-white">
+
+    <!-- Top Corporate Bar -->
+    <header class="bg-blue-950 text-white border-b border-blue-900 sticky top-0 z-40 shadow-md">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <button onclick="toggleSidebar()" class="p-2.5 rounded-xl bg-blue-900/50 hover:bg-blue-900 transition focus:outline-none border border-blue-800">
+                    <svg class="w-6 h-6 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                    </svg>
+                </button>
+                <div class="flex items-center space-x-3">
+                    <img src="logo.png" alt="Logo HMTE" class="w-16 h-16 object contain rounded-xl">
+                    <div>
+                        <span class="block font-black tracking-wider text-lg uppercase text-white">HMTE UNPAM</span>
+                        <span class="block text-[10px] tracking-widest uppercase text-blue-400 font-semibold">Kampus Serang</span>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <a href="admin.html" class="bg-amber-500 hover:bg-amber-400 text-blue-950 font-bold px-5 py-2.5 rounded-xl text-sm transition shadow-lg shadow-amber-500/20">Portal Admin</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sidebar Menu Korporat -->
+    <div id="sidebar" class="fixed inset-y-0 left-0 w-80 bg-slate-900 text-white transform -translate-x-full transition-transform duration-300 ease-in-out z-50 p-8 shadow-2xl flex flex-col justify-between border-r border-slate-800">
+        <div class="space-y-8">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+                <div class="flex items-center space-x-3">
+                    <img src="logo.png" alt="Logo HMTE" class="w-20 h-20 object contain rounded-xl">
+                    <h2 class="font-bold text-lg tracking-wide">Menu Utama</h2>
+                </div>
+                <button onclick="toggleSidebar()" class="text-slate-400 hover:text-white text-2xl font-bold">&times;</button>
+            </div>
+            <nav class="space-y-3 font-medium">
+                <button onclick="showSection('profil')" class="w-full text-left py-3 px-4 rounded-xl hover:bg-blue-600/20 hover:text-blue-400 transition flex items-center space-x-3">
+                    <span>🏢</span> <span>Beranda & Profil</span>
+                </button>
+                <button onclick="showSection('kegiatan')" class="w-full text-left py-3 px-4 rounded-xl hover:bg-blue-600/20 hover:text-blue-400 transition flex items-center space-x-3">
+                    <span>📅</span> <span>Informasi Kegiatan</span>
+                </button>
+                <button onclick="showSection('produk')" class="w-full text-left py-3 px-4 rounded-xl hover:bg-blue-600/20 hover:text-blue-400 transition flex items-center space-x-3">
+                    <span>🛍️</span> <span>Merchandise & Produk</span>
+                </button>
+                <button onclick="showSection('keuangan')" class="w-full text-left py-3 px-4 rounded-xl hover:bg-blue-600/20 hover:text-blue-400 transition flex items-center space-x-3">
+                    <span>💳</span> <span>Uang Kas & QRIS</span>
+                </button>
+                <button onclick="showSection('anggota')" class="w-full text-left py-3 px-4 rounded-xl hover:bg-blue-600/20 hover:text-blue-400 transition flex items-center space-x-3">
+                    <span>🔍</span> <span>Cek Keanggotaan</span>
+                </button>
+            </nav>
+        </div>
+        <div class="text-xs text-slate-500 text-center border-t border-slate-800 pt-6">
+            &copy; 2026 Himpunan Mahasiswa Teknik Elektro <br> Universitas Pamulang Kampus Serang
+        </div>
+    </div>
+
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-40 hidden"></div>
+
+    <!-- Konten Utama -->
+    <main class="max-w-7xl mx-auto px-6 py-10 space-y-12">
+
+        <!-- SECTION 1: PROFIL -->
+        <section id="section-profil" class="space-y-12">
+            <div class="relative bg-gradient-to-br from-blue-900 via-blue-950 to-slate-950 text-white rounded-3xl p-12 lg:p-16 shadow-2xl overflow-hidden border border-blue-900/50">
+                <div class="absolute -right-16 -bottom-16 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="relative z-10 max-w-3xl space-y-6">
+                    <span class="inline-block bg-blue-500/20 text-blue-300 border border-blue-500/30 text-xs uppercase tracking-widest font-bold px-4 py-1.5 rounded-full">
+                        HIMPUNAN MAHASISWA TEKNIK ELEKTRO
+                    </span>
+                    <h2 class="text-4xl lg:text-5xl font-black tracking-tight leading-tight">
+                        Inovatif, Solid, & Berintegritas di Dunia Teknik Elektro
+                    </h2>
+                    <p class="text-slate-300 text-base lg:text-lg leading-relaxed">
+                        Wadah resmi pengembangan potensi akademik, riset teknologi terapan, dan solidaritas mahasiswa Teknik Elektro Universitas Pamulang Kampus Serang.
+                    </p>
+                    <div class="pt-4 flex flex-wrap gap-4">
+                        <button onclick="showSection('produk')" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-3.5 rounded-2xl transition shadow-lg shadow-blue-600/30 text-sm">
+                            Lihat Merchandise &rarr;
+                        </button>
+                        <button onclick="showSection('anggota')" class="bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-bold px-8 py-3.5 rounded-2xl transition border border-slate-700 text-sm">
+                            Cek Keanggotaan
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200/80 space-y-4 hover:shadow-md transition">
+                    <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xl">🎯</div>
+                    <h3 class="text-2xl font-black text-slate-900">Visi Organisasi</h3>
+                    <p class="text-slate-600 leading-relaxed text-sm lg:text-base">
+                        Mewujudkan Himpunan Mahasiswa Teknik Elektro yang aktif, kolaboratif, unggul di bidang teknologi dan keorganisasian, serta berlandaskan kekeluargaan yang erat.
+                    </p>
+                </div>
+                <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-200/80 space-y-4 hover:shadow-md transition">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xl">🚀</div>
+                    <h3 class="text-2xl font-black text-slate-900">Misi Utama</h3>
+                    <ul class="text-slate-600 space-y-2.5 text-sm lg:text-base list-disc list-inside leading-relaxed">
+                        <li>Mengembangkan potensi keilmuan teknik elektro berbasis teknologi terapan modern.</li>
+                        <li>Mempererat tali silaturahmi dan solidaritas tinggi antar mahasiswa.</li>
+                        <li>Menyelenggarakan kegiatan kemahasiswaan yang kreatif, solutif, dan berdampak nyata.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="bg-white p-10 rounded-3xl shadow-sm border border-slate-200/80 space-y-8">
+                <div class="text-center max-w-xl mx-auto space-y-2">
+                    <h3 class="text-3xl font-black text-slate-900">Struktur Kepengurusan HMTE</h3>
+                    <p class="text-slate-500 text-sm">Susunan pengurus harian dan dewan kehormatan organisasi periode aktif.</p>
+                </div>
+                <div class="grid md:grid-cols-3 gap-6 text-center">
+                    <div class="bg-slate-50 p-8 rounded-2xl border border-slate-200/60 space-y-2 hover:border-blue-600 transition">
+                        <span class="text-xs font-bold text-blue-600 tracking-widest uppercase">Dewan Pembina</span>
+                        <h4 class="font-bold text-lg text-slate-900">REGINA DELVIANI PUTRI., S.Si.,M.T</h4>
+                        <p class="text-xs text-slate-500">DOSEN PEMBINA HIMPUNAN</p>
+                    </div>
+                    <div class="bg-slate-50 p-8 rounded-2xl border border-slate-200/60 space-y-2 hover:border-blue-600 transition">
+                        <span class="text-xs font-bold text-blue-600 tracking-widest uppercase">KETUA HMTE</span>
+                        <h4 class="font-bold text-lg text-slate-900">M. ULFI DHAHUHILLAH</h4>
+                        <p class="text-xs text-slate-500">PERIODE 2026-2029</p>
+                    </div>
+                    <div class="bg-slate-50 p-8 rounded-2xl border border-slate-200/60 space-y-2 hover:border-blue-600 transition">
+                        <span class="text-xs font-bold text-blue-600 tracking-widest uppercase">SEKRETARIAT HMTE</span>
+                        <h4 class="font-bold text-lg text-slate-900">YUSIP</h4>
+                        <p class="text-xs text-slate-500">BIDANG KESEKRETARIATAN</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: CEK KEANGGOTAAN -->
+        <section id="section-anggota" class="space-y-6 hidden">
+            <div class="bg-white p-10 rounded-3xl shadow-sm border border-slate-200/80 space-y-6 max-w-3xl mx-auto">
+                <div class="space-y-2">
+                    <h2 class="text-3xl font-black text-slate-900">Direktori & Verifikasi Anggota</h2>
+                    <p class="text-slate-600 text-sm">Cari data keanggotaan mahasiswa secara real-time dengan memasukkan Nama Lengkap atau NIM.</p>
+                </div>
+                <div class="flex gap-3">
+                    <input type="text" id="inputCariAnggota" placeholder="Contoh: 251090 or Budi..." class="border border-slate-300 bg-slate-50 p-4 rounded-2xl w-full text-sm focus:outline-none focus:border-blue-600 focus:bg-white transition font-medium">
+                    <button onclick="cariAnggota()" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl text-sm font-bold transition shadow-lg shadow-blue-600/30">Cari</button>
+                </div>
+                <div id="resultAnggota" class="space-y-3 pt-2"></div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: INFORMASI KEGIATAN -->
+        <section id="section-kegiatan" class="space-y-8 hidden">
+            <div class="flex justify-between items-end border-b border-slate-200 pb-6">
+                <div>
+                    <h2 class="text-3xl font-black text-slate-900">Informasi & Berita Kegiatan</h2>
+                    <p class="text-slate-500 text-sm mt-1">Agenda, pengumuman, dan dokumentasi kegiatan terbaru HMTE.</p>
+                </div>
+            </div>
+            <div id="listKegiatan" class="grid md:grid-cols-2 gap-6"></div>
+        </section>
+
+        <!-- SECTION 4: PRODUK & MERCHANDISE -->
+        <section id="section-produk" class="space-y-8 hidden">
+            <div class="border-b border-slate-200 pb-6">
+                <h2 class="text-3xl font-black text-slate-900">Merchandise & Atribut HMTE</h2>
+                <p class="text-slate-500 text-sm mt-1">Daftar atribut resmi, kaos, jaket, dan pernak-pernik himpunan.</p>
+            </div>
+            <div id="listProduk" class="grid md:grid-cols-3 gap-6"></div>
+        </section>
+
+        <!-- SECTION 5: KEUANGAN & QRIS -->
+        <section id="section-keuangan" class="space-y-8 hidden">
+            <div class="bg-white p-10 rounded-3xl shadow-sm border border-slate-200/80 space-y-8">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-6">
+                    <div>
+                        <h2 class="text-3xl font-black text-slate-900">Transparansi Keuangan & Pembayaran Kas</h2>
+                        <p class="text-slate-500 text-sm mt-1">Laporan arus kas masuk/keluar organisasi serta fasilitas pembayaran via QRIS.</p>
+                    </div>
+                    <div class="flex items-center space-x-3 bg-slate-50 border border-slate-200 p-2.5 rounded-2xl">
+                        <label for="filterBulan" class="text-xs font-bold text-slate-600 uppercase">Pilih Bulan:</label>
+                        <input type="month" id="filterBulan" onchange="loadKas()" class="bg-white border border-slate-300 text-slate-800 text-sm rounded-xl px-3 py-1.5 focus:outline-none focus:border-blue-600 font-medium">
+                        <button onclick="resetFilterBulan()" class="text-xs text-blue-600 hover:underline font-bold px-2">Semua</button>
+                    </div>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-10">
+                    <div class="border border-slate-200 p-8 rounded-3xl bg-slate-50 text-center space-y-4">
+                        <h3 class="text-lg font-bold text-slate-900">QRIS Resmi Kas HMTE</h3>
+                        <div class="bg-white p-4 inline-block rounded-2xl shadow-sm border border-slate-200">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=QRIS_HMTE_KAS" alt="QRIS" class="mx-auto rounded-xl">
+                        </div>
+                        <p class="text-xs text-slate-500 max-w-xs mx-auto">Scan menggunakan aplikasi mobile banking atau e-wallet pilihan Anda untuk iuran kas.</p>
+                    </div>
+                    <div class="space-y-4">
+                        <h3 class="text-lg font-bold text-slate-900">Riwayat Transaksi Kas</h3>
+                        <div class="overflow-y-auto max-h-80 border border-slate-200 rounded-2xl bg-white shadow-inner">
+                            <table class="w-full text-sm text-left">
+                                <thead class="bg-slate-100 sticky top-0 text-slate-700 font-bold border-b border-slate-200">
+                                    <tr>
+                                        <th class="p-4">Tanggal</th>
+                                        <th class="p-4">Jenis</th>
+                                        <th class="p-4">Jumlah</th>
+                                        <th class="p-4">Nota</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelKas" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 text-slate-400 border-t border-slate-900 mt-20 py-12">
+        <div class="max-w-7xl mx-auto px-6 text-center space-y-4 text-sm">
+            <div class="flex justify-center items-center space-x-3">
+                <img src="logo.png" alt="Logo HMTE" class="w-20 h-20 object contain rounded-xl">
+                <span class="font-bold text-white tracking-widest uppercase">HMTE UNPAM SERANG</span>
+            </div>
+            <p class="text-slate-500">Membangun solidaritas, keahlian teknik, dan profesionalisme kepemimpinan.</p>
+            <p class="text-xs text-slate-600 pt-4 border-t border-slate-900">&copy; 2026 Himpunan Mahasiswa Teknik Elektro. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

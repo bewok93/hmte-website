@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Portal - HMTE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#0b0f19] text-gray-100 font-sans antialiased min-h-screen flex items-center justify-center">
+
+    <!-- LOGIN MURNI ADMIN -->
+    <div id="authContainer" class="w-full max-w-md p-8 bg-[#121826] border border-gray-800 rounded-2xl shadow-2xl">
+        <div class="text-center mb-6 space-y-1">
+            <h2 class="text-2xl font-bold tracking-tight text-white">Admin HMTE Portal</h2>
+            <p class="text-sm text-gray-400">Khusus Ketua & Sekretaris Himpunan yang Aktif</p>
+        </div>
+
+        <form id="formSignIn" class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-gray-400 mb-1">Email Pengurus</label>
+                <input type="email" id="signinEmail" placeholder="ketua@hmte.or.id" class="w-full bg-[#1a2234] border border-gray-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500" required>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-400 mb-1">Password</label>
+                <input type="password" id="signinPassword" placeholder="••••••••" class="w-full bg-[#1a2234] border border-gray-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-indigo-500" required>
+            </div>
+            <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl transition shadow-lg shadow-indigo-600/30">
+                Masuk Panel Admin &rarr;
+            </button>
+        </form>
+        <div class="mt-6 text-center">
+            <a href="index.html" class="text-xs text-gray-400 hover:text-white transition">&larr; Kembali ke Website Utama</a>
+        </div>
+    </div>
+
+    <!-- DASHBOARD PANEL ADMIN INTERNAL -->
+    <div id="dashboardContainer" class="hidden w-full h-screen flex">
+        <div class="w-64 bg-[#121826] border-r border-gray-800 p-6 flex flex-col justify-between">
+            <div class="space-y-6">
+                <h2 class="text-lg font-bold text-white border-b border-gray-800 pb-3">Admin Panel</h2>
+                <nav class="space-y-2 text-sm text-gray-300">
+                    <a href="index.html" class="block py-2 px-3 rounded-xl hover:bg-gray-800 transition">Lihat Website Utama</a>
+                </nav>
+            </div>
+            <button onclick="logout()" class="w-full bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white py-2 rounded-xl transition text-sm font-medium">
+                Logout
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-10 space-y-8 bg-[#0b0f19]">
+            
+            <!-- Ubah Password Mandiri -->
+            <div class="bg-[#121826] border border-gray-800 p-6 rounded-2xl shadow-xl">
+                <h3 class="font-bold text-white mb-4">Ubah Password Admin Mandiri</h3>
+                <form id="formPassword" class="flex gap-4">
+                    <input type="password" id="passLama" placeholder="Password Lama" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm flex-1" required>
+                    <input type="password" id="passBaru" placeholder="Password Baru" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm flex-1" required>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-3 rounded-xl text-sm font-medium transition">Simpan</button>
+                </form>
+            </div>
+
+            <!-- Tambah Pengurus Baru -->
+            <div class="bg-[#121826] border border-gray-800 p-6 rounded-2xl shadow-xl">
+                <h3 class="font-bold text-white mb-1">Tambah Akun Pengurus Baru (Ketua / Sekretaris / Bendahara)</h3>
+                <form id="formTambahPengurus" class="space-y-4 mt-4">
+                    <div class="grid md:grid-cols-4 gap-4">
+                        <input type="text" id="pengurusNim" placeholder="NIM Pengurus" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                        <input type="text" id="pengurusNama" placeholder="Nama Lengkap" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                        <select id="pengurusJabatan" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm text-gray-200" required>
+                            <option value="Ketua Himpunan">Ketua Himpunan</option>
+                            <option value="Sekretaris Himpunan">Sekretaris Himpunan</option>
+                            <option value="Bendahara himpunan">Bendahara Himpunan</option>
+                        </select>
+                        <input type="email" id="pengurusEmail" placeholder="Email Aktif" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                    </div>
+                    <input type="password" id="pengurusPassword" placeholder="Password Sementara" class="w-full bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-3 rounded-xl text-sm font-medium transition">Simpan Akun Pengurus Baru</button>
+                </form>
+            </div>
+
+            <!-- Daftar Pengurus & Kontrol Masa Jabatan -->
+            <div class="bg-[#121826] border border-gray-800 p-6 rounded-2xl shadow-xl">
+                <h3 class="font-bold text-white mb-4">Daftar Pengurus & Kontrol Masa Jabatan</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="text-gray-400 border-b border-gray-800">
+                            <tr>
+                                <th class="p-3">Jabatan</th>
+                                <th class="p-3">Nama</th>
+                                <th class="p-3">Email</th>
+                                <th class="p-3">Status Akses</th>
+                                <th class="p-3">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelAdminPengurus" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MANAJEMEN PRODUK & STOK -->
+            <div class="bg-[#121826] border border-gray-800 p-6 rounded-2xl shadow-xl space-y-6">
+                <h3 class="font-bold text-white">Manajemen Produk / Merchandise & Atur Stok</h3>
+                <form id="formProduk" class="space-y-4">
+                    <div class="grid md:grid-cols-4 gap-4">
+                        <input type="text" id="namaProduk" placeholder="Nama Produk" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                        <input type="number" id="hargaProduk" placeholder="Harga (Rp)" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                        <input type="number" id="stokProduk" placeholder="Jumlah Stok" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                        <input type="file" id="gambarProduk" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm text-gray-400" required>
+                    </div>
+                    <textarea id="deskProduk" placeholder="Deskripsi Produk" class="w-full bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm"></textarea>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-3 rounded-xl text-sm font-medium transition">Simpan Produk Baru</button>
+                </form>
+                <div class="overflow-x-auto border border-gray-800 rounded-xl">
+                    <table class="w-full text-left text-sm">
+                        <thead class="text-gray-400 border-b border-gray-800">
+                            <tr>
+                                <th class="p-3">Gambar</th>
+                                <th class="p-3">Nama Produk</th>
+                                <th class="p-3">Harga</th>
+                                <th class="p-3">Stok</th>
+                                <th class="p-3">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelAdminProduk" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Manajemen Anggota HMTE -->
+            <div class="bg-[#121826] border border-gray-800 p-6 rounded-2xl shadow-xl">
+                <h3 class="font-bold text-white mb-4">Tambah & Manajemen Anggota HMTE</h3>
+                <form id="formTambahAnggota" class="space-y-4 mb-6">
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <input type="text" id="nimAnggota" placeholder="NIM Mahasiswa" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                        <input type="text" id="namaAnggota" placeholder="Nama Lengkap" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                        <input type="email" id="emailAnggota" placeholder="Email Aktif" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                    </div>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-3 rounded-xl text-sm font-medium transition">Simpan Anggota Baru</button>
+                </form>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm">
+                        <thead class="text-gray-400 border-b border-gray-800">
+                            <tr>
+                                <th class="p-3">NIM</th>
+                                <th class="p-3">Nama</th>
+                                <th class="p-3">Email</th>
+                                <th class="p-3">Status</th>
+                                <th class="p-3">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelAdminAnggota" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Manajemen Kegiatan -->
+            <div class="bg-[#121826] border border-gray-800 p-6 rounded-2xl shadow-xl space-y-6">
+                <h3 class="font-bold text-white">Manajemen Informasi Kegiatan</h3>
+                <form id="formKegiatan" class="space-y-4">
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <input type="text" id="judulKegiatan" placeholder="Judul Kegiatan" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                        <input type="date" id="tglKegiatan" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                    </div>
+                    <textarea id="deskKegiatan" placeholder="Deskripsi Singkat" class="w-full bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm"></textarea>
+                    <input type="text" id="poinInformasi" placeholder="Poin Informasi (Pisahkan koma)" class="w-full bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-3 rounded-xl text-sm font-medium transition">Tambah Kegiatan</button>
+                </form>
+                <div class="overflow-x-auto border border-gray-800 rounded-xl">
+                    <table class="w-full text-left text-sm">
+                        <thead class="text-gray-400 border-b border-gray-800">
+                            <tr>
+                                <th class="p-3">Tanggal</th>
+                                <th class="p-3">Judul</th>
+                                <th class="p-3">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelAdminKegiatan" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Manajemen Kas -->
+            <div class="bg-[#121826] border border-gray-800 p-6 rounded-2xl shadow-xl space-y-6">
+                <h3 class="font-bold text-white">Manajemen Uang Kas & Nota</h3>
+                <form id="formKas" class="space-y-4">
+                    <div class="grid md:grid-cols-3 gap-4">
+                        <input type="date" id="tglKas" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                        <select id="jenisKas" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm">
+                            <option value="masuk">Uang Masuk</option>
+                            <option value="keluar">Uang Keluar</option>
+                        </select>
+                        <input type="number" id="jumlahKas" placeholder="Jumlah (Rp)" class="bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm" required>
+                    </div>
+                    <input type="text" id="ketKas" placeholder="Keterangan Transaksi" class="w-full bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm">
+                    <input type="file" id="notaKas" class="w-full bg-[#1a2234] border border-gray-700 p-3 rounded-xl text-sm text-gray-400">
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 px-6 py-3 rounded-xl text-sm font-medium transition">Simpan Kas</button>
+                </form>
+                <div class="overflow-x-auto border border-gray-800 rounded-xl">
+                    <table class="w-full text-left text-sm">
+                        <thead class="text-gray-400 border-b border-gray-800">
+                            <tr>
+                                <th class="p-3">Tanggal</th>
+                                <th class="p-3">Jenis</th>
+                                <th class="p-3">Jumlah</th>
+                                <th class="p-3">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelAdminKas" class="divide-y divide-gray-800"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
